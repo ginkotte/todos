@@ -15,29 +15,34 @@ const users = [];
 function checksExistsUserAccount(request, response, next) {
   const { username } = request.headers;
 
-  const user = users.find(user => users.username === username);
+  const user = users.find(user => user.username === username);
 
   if (!user) {
-    return response.status(400).json({ error: "User not found!" })
+    return response.status(404).json({ error: "User not found!" })
   }
 
   request.user = user;
+  return next();
 }
 
 app.post('/users', (request, response) => {
   const { name, username } = request.body;
-  const customerAlredyExists = users.some((user) => users.username === username);
+  const userAlredyExists = users.find(user => user.username === username);
 
-  if (customerAlredyExists) {
+  if (userAlredyExists) {
     return response.status(400).json({ error: "Username alredy exists!" })
   };
 
-  users.push({
-    id: uuidv4, // precisa ser um uuid
-    name: name,
-    username: username,
+  const user = {
+    id: uuidv4(),
+    name,
+    username,
     todos: []
-  })
+  }
+
+  users.push(user);
+
+  return response.status(201).json(user);
 });
 
 app.get('/todos', checksExistsUserAccount, (request, response) => {
@@ -47,19 +52,69 @@ app.get('/todos', checksExistsUserAccount, (request, response) => {
 });
 
 app.post('/todos', checksExistsUserAccount, (request, response) => {
-  // Complete aqui
+  const { user } = request;
+  const { title, deadline } = request.body;
+
+  const createTodo = {
+    id: uuidv4(),
+    title,
+    done: false,
+    deadline: new Date(deadline),
+    created_at: new Date()
+  };
+
+  user.todos.push(createTodo);
+
+  return response.status(201).json(createTodo);
+
 });
 
 app.put('/todos/:id', checksExistsUserAccount, (request, response) => {
-  // Complete aqui
+  const { user } = request;
+  const { title, deadline } = request.body;
+  const { id } = request.params;
+
+  const todo = user.todos.find(todo => todo.id === id);
+
+  if (!todo) {
+    return response.status(404).json({ error: "Couldn't find a Todo with the informed ID!" })
+  }
+
+  todo.title = title;
+  todo.deadline = new Date(deadline);
+
+  return response.json(todo);
+
 });
 
 app.patch('/todos/:id/done', checksExistsUserAccount, (request, response) => {
-  // Complete aqui
+  const { user } = request;
+  const { id } = request.params;
+
+  const todo = user.todos.find(todo => todo.id === id);
+
+  if (!todo) {
+    return response.status(404).json({ error: "Couldn't find a Todo with the informed ID!" })
+  }
+
+  todo.done = true;
+
+  return response.json(todo);
 });
 
 app.delete('/todos/:id', checksExistsUserAccount, (request, response) => {
-  // Complete aqui
+  const { user } = request;
+  const { id } = request.params;
+
+  const todo = user.todos.findIndex(todo => todo.id === id);
+
+  if (todo === -1) {
+    return response.status(404).json({ error: "Couldn't find a Todo with the informed ID!" })
+  }
+
+  user.todos.splice(user, 1);
+
+  return response.status(204).send();
 });
 
 module.exports = app;
